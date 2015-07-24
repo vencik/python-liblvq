@@ -1,0 +1,43 @@
+liblvq Python binding
+=====================
+
+
+Prerequisites
+-------------
+
+You will obviously need liblvq installed.
+You'll find it at https://gitub.com/vencik/liblvq
+
+You will also need Python devel. package installed.
+On Debian-based system, the foolowing should do
+----
+# apt-get install python-dev
+----
+
+
+Build and installation
+----------------------
+
+Convenience Makefile is provided.
+You may want to set some installation parameters in config.make
+(most notably the installation prefix).
+
+Note that you should always build as common user.
+You might need to install as root, if installing to system paths, though.
+
+----
+$ make all
+# make install
+----
+
+
+License
+-------
+
+The software is available opensource under the terms of 3-clause BSD license.
+
+
+Author
+------
+
+Vaclav Krpec  <vencik@razdva.cz>
