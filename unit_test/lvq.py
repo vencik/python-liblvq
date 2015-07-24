@@ -75,6 +75,11 @@ test_set = (
     ( 1.2,  0.9,  1.0),
 );
 
+if (len(sys.argv) > 1):
+    classifier.store(sys.argv[1]);
+    classifier = lvq.load(sys.argv[1]);
+    print "Stored and re-loaded to/from " + sys.argv[1];
+
 for vec in test_set:
     print str(vec) + " classifed as " + str(classifier.classify(vec));
 

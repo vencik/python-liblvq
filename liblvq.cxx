@@ -677,6 +677,49 @@ static PyObject * liblvq__lvq__learn_rate(PyObject * self, PyObject * args) {
 BINDING_INST(liblvq__lvq__learn_rate)
 
 
+/**
+ *  \brief  \c ml::lvq::store binding
+ */
+static PyObject * liblvq__lvq__store(PyObject * self, PyObject * args) {
+    // Get arguments
+    const char * file;
+    parse_args(args, "s", &file);
+
+    // Call implementation
+    python2lvq(self)->store(file);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+BINDING_INST(liblvq__lvq__store)
+
+
+/**
+ *  \brief  \c ml::lvq::load binding
+ */
+static PyObject * liblvq__lvq__load(PyObject * type, PyObject * args) {
+    lvqObject_t * py_lvq = reinterpret_cast<lvqObject_t *>(
+        ((PyTypeObject *)type)->tp_alloc((PyTypeObject *)type, 0));
+
+    if (NULL == py_lvq) return NULL;
+
+    // Get arguments
+    const char * file;
+    parse_args(args, "s", &file);
+
+    // Create dummy ml::lvq instance
+    py_lvq->lvq = new lvq_t(0, 0);
+
+    // Call implementation
+    *py_lvq->lvq = lvq_t::load(file);
+
+    return reinterpret_cast<PyObject *>(py_lvq);
+}
+
+BINDING_INST(liblvq__lvq__load)
+
+
 //
 // Static data
 //
@@ -754,6 +797,18 @@ static PyMethodDef lvqObject_methods[] = {
         BINDING_IDENT(liblvq__lvq__learn_rate),
         METH_VARARGS,
         "Compute learn rate of a training set"
+    },
+    {
+        "store",
+        BINDING_IDENT(liblvq__lvq__store),
+        METH_VARARGS,
+        "Store lvq instance to a file"
+    },
+    {
+        "load",
+        BINDING_IDENT(liblvq__lvq__load),
+        METH_VARARGS | METH_CLASS,
+        "Load lvq instance from a file"
     },
 
     { NULL, NULL, 0, NULL }  // sentinel
