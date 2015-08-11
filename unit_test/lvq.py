@@ -47,7 +47,7 @@ train_set = (
     (( 1.2,  0.9,  1.0), 5),
 );
 
-classifier.train(train_set, 5, 3, 1000);
+classifier.train(train_set);
 
 print "Training set: " +  str(train_set);
 print "Learn rate: " + str(classifier.learn_rate(train_set));

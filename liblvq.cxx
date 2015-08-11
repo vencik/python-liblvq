@@ -506,10 +506,10 @@ BINDING_INST(liblvq__lvq__train1)
 static PyObject * liblvq__lvq__train(PyObject * self, PyObject * args) {
     // Get arguments
     PyObject * py_set;
-    unsigned   conv_win;
-    unsigned   max_div_cnt;
-    unsigned   max_tlc;
-    parse_args(args, "OIII", &py_set, &conv_win, &max_div_cnt, &max_tlc);
+    unsigned   conv_win    = LIBLVQ__ML__LVQ__TRAIN__CONV_WIN;
+    unsigned   max_div_cnt = LIBLVQ__ML__LVQ__TRAIN__MAX_DIV_CNT;
+    unsigned   max_tlc     = LIBLVQ__ML__LVQ__TRAIN__MAX_TLC;
+    parse_args(args, "O|III", &py_set, &conv_win, &max_div_cnt, &max_tlc);
 
     const training_set_t set = python2training_set(py_set);
 
