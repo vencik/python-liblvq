@@ -56,6 +56,9 @@ test_set = (
     (( 0.9,  1.1,  0.0), 3),
     (( 0.8, -0.1,  1.0), 4),
     (( 1.2,  0.9,  1.0), 5),
+
+    (( 0.2,  1.0,  1.0), 2),  # a ruse, it belongs to class 5
+    (( 0.2,  0.8,  1.0), 2),  # ... but this is class 2 indeed
 )
 
 print("Testing set: " + str(test_set))
