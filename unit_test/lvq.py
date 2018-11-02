@@ -63,8 +63,10 @@ test_set = (
 
 print("Testing set: " + str(test_set))
 
-for vec, _ in test_set:
-    print(str(vec) + " classifed as " + str(classifier.classify(vec)))
+for vec, expected in test_set:
+    c1ass = classifier.classify(vec)
+    print(str(vec) + " classifed as " + str(c1ass) + \
+        " (" + ("correctly)" if c1ass == expected else "WRONGLY)"))
 
 stats = classifier.test(test_set)
 
