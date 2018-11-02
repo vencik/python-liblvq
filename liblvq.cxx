@@ -57,6 +57,9 @@ typedef ml::lvq<realx_t> lvq_t;
 /** Training set */
 typedef std::vector<std::pair<lvq_t::input_t, size_t> > training_set_t;
 
+/** LVQ statistics */
+typedef lvq_t::statistics lvq_stats_t;
+
 
 /** LVQ Python object */
 typedef struct {
@@ -67,6 +70,17 @@ typedef struct {
 /** LVQ object access */
 #define python2lvq(self) \
     ((reinterpret_cast<lvqObject_t *>(self))->lvq)
+
+
+/** LVQ statistics Python object */
+typedef struct {
+    PyObject_HEAD
+    lvq_stats_t * lvq_stats;
+} lvqStatisticsObject_t;
+
+/** LVQ statistics object access */
+#define python2lvq_stats(self) \
+    ((reinterpret_cast<lvqStatisticsObject_t *>(self))->lvq_stats)
 
 
 /**
@@ -301,10 +315,10 @@ static training_set_t python2training_set(PyObject * py_set) {
 
         const lvq_t::input_t input = python2input(py_input);
 
-        if (!PyInt_Check(py_cluster))
+        if (!PyLong_Check(py_cluster))
             throw std::logic_error("Invalid cluster (integer expected)");
 
-        Py_ssize_t cluster = PyInt_AsSsize_t(py_cluster);
+        Py_ssize_t cluster = PyLong_AsSsize_t(py_cluster);
 
         if (0 > cluster)
             throw std::logic_error("Invalid cluster (must be >= 0)");
@@ -320,8 +334,18 @@ static training_set_t python2training_set(PyObject * py_set) {
 }
 
 
+//
+// Forward declarations
+//
+
+/** \cond */
+static PyTypeObject * get_lvqType();
+static PyTypeObject * get_lvqStatisticsType();
+/** \endcond */
+
+
 /**
- *  \brief  Constructor
+ *  \brief  LVQ constructor
  *
  *  \param  py_lvq  Python LVQ object
  *  \param  args    Arguments
@@ -343,7 +367,7 @@ static void liblvq__lvq__create(
 
 
 /**
- *  \brief  Destructor
+ *  \brief  LVQ destructor
  *
  *  \param  py_lvq  Python LVQ object
  *
@@ -361,6 +385,52 @@ static int liblvq__lvq__destroy(lvqObject_t * py_lvq) {
 /** \cond */
 static void BINDING_IDENT(liblvq__lvq__destroy)(lvqObject_t * py_lvq) {
     wrap_X(0, liblvq__lvq__destroy, py_lvq);
+}
+/** \endcond */
+
+
+/**
+ *  \brief  LVQ statistics constructor
+ *
+ *  \param  py_lvq_stats  Python LVQ statistics object
+ *  \param  args          Arguments
+ *  \param  kwds          Keywords
+ */
+static void liblvq__lvq__statistics__create(
+    lvqStatisticsObject_t * py_lvq_stats,
+    PyObject              * args,
+    PyObject              * kwds)
+{
+    // Get arguments
+    size_t ccnt;
+    parse_args(args, "n", &ccnt);
+
+    // Create ml::lvq::statistics instance
+    py_lvq_stats->lvq_stats = new lvq_stats_t(ccnt);
+}
+
+
+/**
+ *  \brief  LVQ statistics destructor
+ *
+ *  \param  py_lvq_stats  Python LVQ statistics object
+ *
+ *  \return 0
+ */
+static int liblvq__lvq__statistics__destroy(lvqStatisticsObject_t * py_lvq_stats) {
+    lvq_stats_t * lvq_stats = py_lvq_stats->lvq_stats;
+    py_lvq_stats->lvq_stats = NULL;
+
+    if (NULL != lvq_stats) delete lvq_stats;
+
+    return 0;
+}
+
+/** \cond */
+static void BINDING_IDENT(liblvq__lvq__statistics__destroy)(
+    lvqStatisticsObject_t * py_lvq_stats)
+{
+    wrap_X(0, liblvq__lvq__statistics__destroy, py_lvq_stats);
 }
 /** \endcond */
 
@@ -658,9 +728,17 @@ BINDING_INST(liblvq__lvq__classify_weight_threshold)
 
 
 /**
- *  \brief  \c ml::lvq::learn_rate binding
+ *  \brief  \c ml::lvq::test binding
  */
-static PyObject * liblvq__lvq__learn_rate(PyObject * self, PyObject * args) {
+static PyObject * liblvq__lvq__test(PyObject * self, PyObject * args) {
+    PyTypeObject * lvq_stats_type = get_lvqStatisticsType();
+
+    lvqStatisticsObject_t * py_lvq_stats =
+        reinterpret_cast<lvqStatisticsObject_t *>(
+            lvq_stats_type->tp_alloc(lvq_stats_type, 0));
+
+    if (NULL == py_lvq_stats) return NULL;
+
     // Get arguments
     PyObject * py_set;
     parse_args(args, "O", &py_set);
@@ -668,13 +746,13 @@ static PyObject * liblvq__lvq__learn_rate(PyObject * self, PyObject * args) {
     const training_set_t set = python2training_set(py_set);
 
     // Call implementation
-    float lrate = python2lvq(self)->learn_rate(set);
+    py_lvq_stats->lvq_stats = new lvq_stats_t(python2lvq(self)->test(set));
 
     // Transform result
-    return Py_BuildValue("f", lrate);
+    return reinterpret_cast<PyObject *>(py_lvq_stats);
 }
 
-BINDING_INST(liblvq__lvq__learn_rate)
+BINDING_INST(liblvq__lvq__test)
 
 
 /**
@@ -721,6 +799,153 @@ BINDING_INST(liblvq__lvq__load)
 
 
 //
+// ml::lvq::statistics member functions binding
+//
+
+/**
+ *  \brief  Constructor
+ *
+ *  \param  type  Python LVQ statistics type
+ *  \param  args  Arguments
+ *  \param  kwds  Keywords
+ *
+ *  \return LVQ instance
+ */
+static PyObject * liblvq__lvq__statistics__new(
+    PyTypeObject * type,
+    PyObject     * args,
+    PyObject     * kwds)
+{
+    lvqStatisticsObject_t * py_lvq_stats =
+        reinterpret_cast<lvqStatisticsObject_t *>(type->tp_alloc(type, 0));
+
+    if (NULL == py_lvq_stats) return NULL;
+
+    liblvq__lvq__statistics__create(py_lvq_stats, args, kwds);
+
+    return reinterpret_cast<PyObject *>(py_lvq_stats);
+}
+
+/** \cond */
+static PyObject * BINDING_IDENT(liblvq__lvq__statistics__new)(
+    PyTypeObject * type,
+    PyObject     * args,
+    PyObject     * kwds)
+{
+    return wrap_X((PyObject *)NULL, liblvq__lvq__statistics__new, type, args, kwds);
+}
+/** \endcond */
+
+
+/**
+ *  \brief  Constructor (__init__)
+ *
+ *  \param  self  Python LQV statistics object
+ *  \param  args  Arguments
+ *  \param  kwds  Keywords
+ *
+ *  \return 0
+ */
+static int liblvq__lvq__statistics__init(
+    PyObject * self,
+    PyObject * args,
+    PyObject * kwds)
+{
+    lvqStatisticsObject_t * py_lvq_stats =
+        reinterpret_cast<lvqStatisticsObject_t *>(self);
+
+    liblvq__lvq__statistics__destroy(py_lvq_stats);
+
+    liblvq__lvq__statistics__create(py_lvq_stats, args, kwds);
+
+    return 0;
+}
+
+/** \cond */
+static int BINDING_IDENT(liblvq__lvq__statistics__init)(
+    PyObject * self,
+    PyObject * args,
+    PyObject * kwds)
+{
+    return wrap_X((int)1, liblvq__lvq__statistics__init, self, args, kwds);
+}
+/** \endcond */
+
+
+/**
+ *  \brief  ml::lvq::statistics::accuracy binding
+ */
+static PyObject * liblvq__lvq__statistics__accuracy(
+    PyObject * self, PyObject * args)
+{
+    // Call implementation
+    double accuracy = python2lvq_stats(self)->accuracy();
+
+    // Transform result
+    return Py_BuildValue("d", accuracy);
+}
+
+BINDING_INST(liblvq__lvq__statistics__accuracy)
+
+
+/**
+ *  \brief  ml::lvq::statistics::F(beta) binding
+ */
+static PyObject * liblvq__lvq__statistics__F_beta(
+    PyObject * self, PyObject * args)
+{
+    // Get arguments
+    double beta;
+    parse_args(args, "d", &beta);
+
+    // Call implementation
+    double F_beta = python2lvq_stats(self)->F(beta);
+
+    // Transform result
+    return Py_BuildValue("d", F_beta);
+}
+
+BINDING_INST(liblvq__lvq__statistics__F_beta)
+
+
+/**
+ *  \brief  ml::lvq::statistics::F binding
+ */
+static PyObject * liblvq__lvq__statistics__F(
+    PyObject * self, PyObject * args)
+{
+    // Call implementation
+    double F = python2lvq_stats(self)->F();
+
+    // Transform result
+    return Py_BuildValue("d", F);
+}
+
+BINDING_INST(liblvq__lvq__statistics__F)
+
+
+//
+// Module state
+//
+
+struct module_state {
+    PyObject * error;
+};
+
+
+static int liblvq_traverse(PyObject * m, visitproc visit, void * arg) {
+    Py_VISIT(((struct module_state *)PyModule_GetState(m))->error);
+    return 0;
+}
+
+
+static int liblvq_clear(PyObject * m) {
+    Py_CLEAR(((struct module_state *)PyModule_GetState(m))->error);
+    return 0;
+}
+
+
+//
 // Static data
 //
 
@@ -754,7 +979,7 @@ static PyMethodDef lvqObject_methods[] = {
         "train",
         BINDING_IDENT(liblvq__lvq__train),
         METH_VARARGS,
-        "Train set"
+        "Train LVQ model"
     },
     {
         "classify",
@@ -793,10 +1018,10 @@ static PyMethodDef lvqObject_methods[] = {
         "Classify to weight threshold"
     },
     {
-        "learn_rate",
-        BINDING_IDENT(liblvq__lvq__learn_rate),
+        "test",
+        BINDING_IDENT(liblvq__lvq__test),
         METH_VARARGS,
-        "Compute learn rate of a training set"
+        "Test LVQ model"
     },
     {
         "store",
@@ -815,11 +1040,41 @@ static PyMethodDef lvqObject_methods[] = {
 };  // end of lvqObject_methods
 
 
+/** LVQ statistics data members */
+static PyMemberDef lvqStatisticsObject_attrs[] = {
+    { NULL, 0, 0, 0, NULL }  // sentinel
+};  // end of lvqStatisticsObject_members
+
+
+/** LVQ statistics member functions */
+static PyMethodDef lvqStatisticsObject_methods[] = {
+    {
+        "accuracy",
+        BINDING_IDENT(liblvq__lvq__statistics__accuracy),
+        METH_VARARGS,
+        "Get accuracy"
+    },
+    {
+        "F_beta",
+        BINDING_IDENT(liblvq__lvq__statistics__F_beta),
+        METH_VARARGS,
+        "Get F_beta score"
+    },
+    {
+        "F",
+        BINDING_IDENT(liblvq__lvq__statistics__F),
+        METH_VARARGS,
+        "Get F (i.e. F_1) score"
+    },
+
+    { NULL, NULL, 0, NULL }  // sentinel
+};  // end of lvqStatisticsObject_methods
+
+
 /** LVQ Python type */
 static PyTypeObject lvqType = {
     PyObject_HEAD_INIT(NULL)
 
-    /* ob_size          */  0,
     /* tp_name          */  "liblvq.lvq",
     /* tp_basicsize     */  sizeof(lvqObject_t),
     /* tp_itemsize      */  0,
@@ -860,26 +1115,90 @@ static PyTypeObject lvqType = {
 
 };  // end of lvqType
 
+static PyTypeObject * get_lvqType() { return &lvqType; }
+
+
+/** LVQ statistics Python type */
+static PyTypeObject lvqStatisticsType = {
+    PyObject_HEAD_INIT(NULL)
+
+    /* tp_name          */  "liblvq.lvq.statistics",
+    /* tp_basicsize     */  sizeof(lvqStatisticsObject_t),
+    /* tp_itemsize      */  0,
+    /* tp_dealloc       */  (destructor)BINDING_IDENT(liblvq__lvq__statistics__destroy),
+    /* tp_print         */  0,
+    /* tp_getattr       */  0,
+    /* tp_setattr       */  0,
+    /* tp_compare       */  0,
+    /* tp_repr          */  0,
+    /* tp_as_number     */  0,
+    /* tp_as_sequence   */  0,
+    /* tp_as_mapping    */  0,
+    /* tp_hash          */  0,
+    /* tp_call          */  0,
+    /* tp_str           */  0,
+    /* tp_getattro      */  0,
+    /* tp_setattro      */  0,
+    /* tp_as_buffer     */  0,
+    /* tp_flags         */  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    /* tp_doc           */  "lvq statistics objects",
+    /* tp_traverse      */  0,
+    /* tp_clear         */  0,
+    /* tp_richcompare   */  0,
+    /* tp_weaklistoffset*/  0,
+    /* tp_iter          */  0,
+    /* tp_iternext      */  0,
+    /* tp_methods       */  lvqStatisticsObject_methods,
+    /* tp_members       */  lvqStatisticsObject_attrs,
+    /* tp_getset        */  0,
+    /* tp_base          */  0,
+    /* tp_dict          */  0,
+    /* tp_descr_get     */  0,
+    /* tp_descr_set     */  0,
+    /* tp_dictoffset    */  0,
+    /* tp_init          */  BINDING_IDENT(liblvq__lvq__statistics__init),
+    /* tp_alloc         */  0,
+    /* tp_new           */  BINDING_IDENT(liblvq__lvq__statistics__new),
+
+};  // end of lvqStatisticsType
+
+static PyTypeObject * get_lvqStatisticsType() { return &lvqStatisticsType; }
+
 
 /** Module member functions */
-static PyMethodDef liblvq__methods[] = {
+static PyMethodDef liblvq_methods[] = {
 
     { NULL, NULL, 0, NULL }  // sentinel
 };  // end of liblvq__methods
 
 
+/** Module definition */
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "liblvq",
+    NULL,
+    sizeof(struct module_state),
+    liblvq_methods,
+    NULL,
+    liblvq_traverse,
+    liblvq_clear,
+    NULL
+};
+
+
 /** Module initialiser */
-PyMODINIT_FUNC
-initliblvq(void) {
-    if (PyType_Ready(&lvqType) < 0) return;
+PyMODINIT_FUNC PyInit_liblvq(void) {
+    if (PyType_Ready(&lvqType)           < 0) return NULL;
+    if (PyType_Ready(&lvqStatisticsType) < 0) return NULL;
 
-    PyObject * module = Py_InitModule3(
-        "liblvq",
-        liblvq__methods,
-        "liblvq extension module");
-
-    if (NULL == module) return;
+    PyObject * module = PyModule_Create(&moduledef);
+    if (NULL == module) return NULL;
 
     Py_INCREF(&lvqType);
     PyModule_AddObject(module, "lvq", (PyObject *)&lvqType);
+
+    Py_INCREF(&lvqStatisticsType);
+    PyModule_AddObject(module, "lvq.statistics", (PyObject *)&lvqStatisticsType);
+
+    return module;
 }
