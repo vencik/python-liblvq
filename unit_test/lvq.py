@@ -66,6 +66,14 @@ for vec, _ in test_set:
 stats = classifier.test(test_set)
 
 print("Accuracy:    %f" % (stats.accuracy(),))
+
+for c1ass in range(6):
+    print("Class %d precision:   %f" % (c1ass, stats.precision(c1ass)))
+    print("Class %d recall:      %f" % (c1ass, stats.recall(c1ass)))
+    print("Class %d F_1 score:   %f" % (c1ass, stats.F(c1ass)))
+    print("Class %d F_0.5 score: %f" % (c1ass, stats.F_beta(0.5, c1ass)))
+    print("Class %d F_2 score:   %f" % (c1ass, stats.F_beta(2, c1ass)))
+
 print("F_1   score: %f" % (stats.F(),))
 print("F_0.5 score: %f" % (stats.F_beta(0.5),))
 print("F_2   score: %f" % (stats.F_beta(2.0),))

@@ -889,6 +889,46 @@ BINDING_INST(liblvq__lvq__statistics__accuracy)
 
 
 /**
+ *  \brief  ml::lvq::statistics::precision binding
+ */
+static PyObject * liblvq__lvq__statistics__precision(
+    PyObject * self, PyObject * args)
+{
+    // Get arguments
+    int c1ass;
+    parse_args(args, "I", &c1ass);
+
+    // Call implementation
+    double precision = python2lvq_stats(self)->precision(c1ass);
+
+    // Transform result
+    return Py_BuildValue("d", precision);
+}
+
+BINDING_INST(liblvq__lvq__statistics__precision)
+
+
+/**
+ *  \brief  ml::lvq::statistics::recall binding
+ */
+static PyObject * liblvq__lvq__statistics__recall(
+    PyObject * self, PyObject * args)
+{
+    // Get arguments
+    int c1ass;
+    parse_args(args, "I", &c1ass);
+
+    // Call implementation
+    double recall = python2lvq_stats(self)->recall(c1ass);
+
+    // Transform result
+    return Py_BuildValue("d", recall);
+}
+
+BINDING_INST(liblvq__lvq__statistics__recall)
+
+
+/**
  *  \brief  ml::lvq::statistics::F(beta) binding
  */
 static PyObject * liblvq__lvq__statistics__F_beta(
@@ -896,10 +936,13 @@ static PyObject * liblvq__lvq__statistics__F_beta(
 {
     // Get arguments
     double beta;
-    parse_args(args, "d", &beta);
+    int    c1ass = -1;
+    parse_args(args, "d|I", &beta, &c1ass);
 
     // Call implementation
-    double F_beta = python2lvq_stats(self)->F(beta);
+    double F_beta = c1ass < 0
+        ? python2lvq_stats(self)->F(beta)
+        : python2lvq_stats(self)->F(beta, (size_t)c1ass);
 
     // Transform result
     return Py_BuildValue("d", F_beta);
@@ -914,8 +957,14 @@ BINDING_INST(liblvq__lvq__statistics__F_beta)
 static PyObject * liblvq__lvq__statistics__F(
     PyObject * self, PyObject * args)
 {
+    // Get arguments
+    int c1ass = -1;
+    parse_args(args, "|I", &c1ass);
+
     // Call implementation
-    double F = python2lvq_stats(self)->F();
+    double F = c1ass < 0
+        ? python2lvq_stats(self)->F()
+        : python2lvq_stats(self)->F((size_t)c1ass);
 
     // Transform result
     return Py_BuildValue("d", F);
@@ -1053,6 +1102,18 @@ static PyMethodDef lvqStatisticsObject_methods[] = {
         BINDING_IDENT(liblvq__lvq__statistics__accuracy),
         METH_VARARGS,
         "Get accuracy"
+    },
+    {
+        "precision",
+        BINDING_IDENT(liblvq__lvq__statistics__precision),
+        METH_VARARGS,
+        "Get precision for class"
+    },
+    {
+        "recall",
+        BINDING_IDENT(liblvq__lvq__statistics__recall),
+        METH_VARARGS,
+        "Get recall for class"
     },
     {
         "F_beta",
