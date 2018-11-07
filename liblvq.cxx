@@ -44,6 +44,8 @@
 #include <Python.h>
 #include <structmember.h>
 
+#include <cstdint>
+
 
 /** Base numeric type */
 typedef double base_t;
@@ -54,8 +56,11 @@ typedef math::realx<base_t> realx_t;
 /** LVQ */
 typedef ml::lvq<realx_t> lvq_t;
 
-/** Training set */
-typedef std::vector<std::pair<lvq_t::input_t, size_t> > training_set_t;
+/** Classifier training/test set */
+typedef lvq_t::tset_classifier tset_classifier_t;
+
+/** Clustering training/test set */
+typedef lvq_t::tset_clustering tset_clustering_t;
 
 /** LVQ statistics */
 typedef lvq_t::statistics lvq_stats_t;
@@ -284,7 +289,7 @@ static PyObject * cw_vec2python(const std::vector<lvq_t::cw_t> & cw_vec) {
 
 
 /**
- *  \brief  Transform Python training set to \c lvq_t::input_t set
+ *  \brief  Transform Python training/test set to \c lvq_t::tset_classifier_t set
  *
  *  The Python training set is an iterable containing (input, cluster) tuples.
  *
@@ -292,7 +297,7 @@ static PyObject * cw_vec2python(const std::vector<lvq_t::cw_t> & cw_vec) {
  *
  *  \return Training set
  */
-static training_set_t python2training_set(PyObject * py_set) {
+static tset_classifier_t python2tset_classifier(PyObject * py_set) {
     Py_ssize_t set_size = PyObject_Size(py_set);
     if (-1 == set_size)
         throw std::logic_error("Invalid training set (can't get size)");
@@ -301,8 +306,7 @@ static training_set_t python2training_set(PyObject * py_set) {
     if (NULL == py_iter)
         throw std::logic_error("Invalid training set (should be iterable)");
 
-    training_set_t set;
-    set.reserve(set_size);
+    tset_classifier_t set;
 
     PyObject * py_ic;
     while (NULL != (py_ic = PyIter_Next(py_iter))) {
@@ -326,6 +330,41 @@ static training_set_t python2training_set(PyObject * py_set) {
         set.emplace_back(input, cluster);
 
         Py_DECREF(py_ic);
+    }
+
+    Py_DECREF(py_iter);
+
+    return set;
+}
+
+
+/**
+ *  \brief  Transform Python training/test set to \c lvq_t::tset_clustering_t set
+ *
+ *  The Python training set is an iterable containing (input, cluster) tuples.
+ *
+ *  \param  py_set  Python iterable of number tuples
+ *
+ *  \return Training set
+ */
+static tset_clustering_t python2tset_clustering(PyObject * py_set) {
+    Py_ssize_t set_size = PyObject_Size(py_set);
+    if (-1 == set_size)
+        throw std::logic_error("Invalid training set (can't get size)");
+
+    PyObject * py_iter = PyObject_GetIter(py_set);
+    if (NULL == py_iter)
+        throw std::logic_error("Invalid training set (should be iterable)");
+
+    tset_clustering_t set;
+
+    PyObject * py_input;
+    while (NULL != (py_input = PyIter_Next(py_iter))) {
+        const lvq_t::input_t input = python2input(py_input);
+
+        set.emplace_back(input);
+
+        Py_DECREF(py_input);
     }
 
     Py_DECREF(py_iter);
@@ -549,9 +588,31 @@ BINDING_INST(liblvq__lvq__get)
 
 
 /**
- *  \brief  \c ml::lvq::train1 binding
+ *  \brief  ml::lvq::set_random binding
  */
-static PyObject * liblvq__lvq__train1(PyObject * self, PyObject * args) {
+static PyObject * liblvq__lvq__set_random(PyObject * self, PyObject * args) {
+    // Get arguments
+    size_t cluster = SIZE_MAX;
+    parse_args(args, "|n", &cluster);
+
+    // Call implementation
+    if (SIZE_MAX == cluster)
+        python2lvq(self)->set_random();
+    else
+        python2lvq(self)->set_random(cluster);
+
+    // No return value
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+BINDING_INST(liblvq__lvq__set_random)
+
+
+/**
+ *  \brief  \c ml::lvq::train1_supervised binding
+ */
+static PyObject * liblvq__lvq__train1_supervised(PyObject * self, PyObject * args) {
     // Get arguments
     PyObject *    py_input;
     size_t        cluster;
@@ -561,19 +622,40 @@ static PyObject * liblvq__lvq__train1(PyObject * self, PyObject * args) {
     const lvq_t::input_t input = python2input(py_input);
 
     // Call implementation
-    lvq_t::base_t dnorm2 = python2lvq(self)->train1(input, cluster, lfactor);
+    lvq_t::base_t dnorm2 = python2lvq(self)->train1_supervised(input, cluster, lfactor);
 
     // Transform result
     return Py_BuildValue("d", dnorm2);
 }
 
-BINDING_INST(liblvq__lvq__train1)
+BINDING_INST(liblvq__lvq__train1_supervised)
 
 
 /**
- *  \brief  \c ml::lvq::train binding
+ *  \brief  \c ml::lvq::train1_unsupervised binding
  */
-static PyObject * liblvq__lvq__train(PyObject * self, PyObject * args) {
+static PyObject * liblvq__lvq__train1_unsupervised(PyObject * self, PyObject * args) {
+    // Get arguments
+    PyObject *    py_input;
+    lvq_t::base_t lfactor;
+    parse_args(args, "Od", &py_input, &lfactor);
+
+    const lvq_t::input_t input = python2input(py_input);
+
+    // Call implementation
+    lvq_t::base_t dnorm2 = python2lvq(self)->train1_unsupervised(input, lfactor);
+
+    // Transform result
+    return Py_BuildValue("d", dnorm2);
+}
+
+BINDING_INST(liblvq__lvq__train1_unsupervised)
+
+
+/**
+ *  \brief  \c ml::lvq::train_supervised binding
+ */
+static PyObject * liblvq__lvq__train_supervised(PyObject * self, PyObject * args) {
     // Get arguments
     PyObject * py_set;
     unsigned   conv_win    = LIBLVQ__ML__LVQ__TRAIN__CONV_WIN;
@@ -581,16 +663,39 @@ static PyObject * liblvq__lvq__train(PyObject * self, PyObject * args) {
     unsigned   max_tlc     = LIBLVQ__ML__LVQ__TRAIN__MAX_TLC;
     parse_args(args, "O|III", &py_set, &conv_win, &max_div_cnt, &max_tlc);
 
-    const training_set_t set = python2training_set(py_set);
+    const tset_classifier_t set = python2tset_classifier(py_set);
 
     // Call implementation
-    python2lvq(self)->train(set, conv_win, max_div_cnt, max_tlc);
+    python2lvq(self)->train_supervised(set, conv_win, max_div_cnt, max_tlc);
 
     Py_INCREF(Py_None);
     return Py_None;
 }
 
-BINDING_INST(liblvq__lvq__train)
+BINDING_INST(liblvq__lvq__train_supervised)
+
+
+/**
+ *  \brief  \c ml::lvq::train_unsupervised binding
+ */
+static PyObject * liblvq__lvq__train_unsupervised(PyObject * self, PyObject * args) {
+    // Get arguments
+    PyObject * py_set;
+    unsigned   conv_win    = LIBLVQ__ML__LVQ__TRAIN__CONV_WIN;
+    unsigned   max_div_cnt = LIBLVQ__ML__LVQ__TRAIN__MAX_DIV_CNT;
+    unsigned   max_tlc     = LIBLVQ__ML__LVQ__TRAIN__MAX_TLC;
+    parse_args(args, "O|III", &py_set, &conv_win, &max_div_cnt, &max_tlc);
+
+    const tset_clustering_t set = python2tset_clustering(py_set);
+
+    // Call implementation
+    python2lvq(self)->train_unsupervised(set, conv_win, max_div_cnt, max_tlc);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+BINDING_INST(liblvq__lvq__train_unsupervised)
 
 
 /**
@@ -728,9 +833,9 @@ BINDING_INST(liblvq__lvq__classify_weight_threshold)
 
 
 /**
- *  \brief  \c ml::lvq::test binding
+ *  \brief  \c ml::lvq::test_classifier binding
  */
-static PyObject * liblvq__lvq__test(PyObject * self, PyObject * args) {
+static PyObject * liblvq__lvq__test_classifier(PyObject * self, PyObject * args) {
     PyTypeObject * lvq_stats_type = get_lvqStatisticsType();
 
     lvqStatisticsObject_t * py_lvq_stats =
@@ -743,16 +848,44 @@ static PyObject * liblvq__lvq__test(PyObject * self, PyObject * args) {
     PyObject * py_set;
     parse_args(args, "O", &py_set);
 
-    const training_set_t set = python2training_set(py_set);
+    const tset_classifier_t set = python2tset_classifier(py_set);
 
     // Call implementation
-    py_lvq_stats->lvq_stats = new lvq_stats_t(python2lvq(self)->test(set));
+    py_lvq_stats->lvq_stats = new lvq_stats_t(python2lvq(self)->test_classifier(set));
 
     // Transform result
     return reinterpret_cast<PyObject *>(py_lvq_stats);
 }
 
-BINDING_INST(liblvq__lvq__test)
+BINDING_INST(liblvq__lvq__test_classifier)
+
+
+/**
+ *  \brief  \c ml::lvq::test_clustering binding
+ */
+static PyObject * liblvq__lvq__test_clustering(PyObject * self, PyObject * args) {
+    PyTypeObject * lvq_stats_type = get_lvqStatisticsType();
+
+    lvqStatisticsObject_t * py_lvq_stats =
+        reinterpret_cast<lvqStatisticsObject_t *>(
+            lvq_stats_type->tp_alloc(lvq_stats_type, 0));
+
+    if (NULL == py_lvq_stats) return NULL;
+
+    // Get arguments
+    PyObject * py_set;
+    parse_args(args, "O", &py_set);
+
+    const tset_clustering_t set = python2tset_clustering(py_set);
+
+    // Call implementation
+    py_lvq_stats->lvq_stats = new lvq_stats_t(python2lvq(self)->test_clustering(set));
+
+    // Transform result
+    return reinterpret_cast<PyObject *>(py_lvq_stats);
+}
+
+BINDING_INST(liblvq__lvq__test_clustering)
 
 
 /**
@@ -1019,16 +1152,34 @@ static PyMethodDef lvqObject_methods[] = {
         "Get cluster representant"
     },
     {
-        "train1",
-        BINDING_IDENT(liblvq__lvq__train1),
+        "set_random",
+        BINDING_IDENT(liblvq__lvq__set_random),
         METH_VARARGS,
-        "Training step"
+        "Set cluster representant(s) randomly"
     },
     {
-        "train",
-        BINDING_IDENT(liblvq__lvq__train),
+        "train1_supervised",
+        BINDING_IDENT(liblvq__lvq__train1_supervised),
         METH_VARARGS,
-        "Train LVQ model"
+        "Supervised training step"
+    },
+    {
+        "train1_unsupervised",
+        BINDING_IDENT(liblvq__lvq__train1_unsupervised),
+        METH_VARARGS,
+        "Unsupervised training step"
+    },
+    {
+        "train_supervised",
+        BINDING_IDENT(liblvq__lvq__train_supervised),
+        METH_VARARGS,
+        "Train LVQ model (supervised training)"
+    },
+    {
+        "train_unsupervised",
+        BINDING_IDENT(liblvq__lvq__train_unsupervised),
+        METH_VARARGS,
+        "Train LVQ model (unsupervised training)"
     },
     {
         "classify",
@@ -1067,10 +1218,16 @@ static PyMethodDef lvqObject_methods[] = {
         "Classify to weight threshold"
     },
     {
-        "test",
-        BINDING_IDENT(liblvq__lvq__test),
+        "test_classifier",
+        BINDING_IDENT(liblvq__lvq__test_classifier),
         METH_VARARGS,
-        "Test LVQ model"
+        "Test LVQ classifier"
+    },
+    {
+        "test_clustering",
+        BINDING_IDENT(liblvq__lvq__test_clustering),
+        METH_VARARGS,
+        "Test LVQ clusteringmodel"
     },
     {
         "store",

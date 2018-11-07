@@ -33,7 +33,8 @@ train_set = (
 
 print("Training set: " +  str(train_set))
 
-classifier.train(train_set)
+classifier.set_random()
+classifier.train_supervised(train_set)
 
 test_set = (
     ((1, 0, 0), 0),
@@ -68,7 +69,7 @@ for vec, expected in test_set:
     print(str(vec) + " classifed as " + str(c1ass) + \
         " (" + ("correctly)" if c1ass == expected else "WRONGLY)"))
 
-stats = classifier.test(test_set)
+stats = classifier.test_classifier(test_set)
 
 print("Accuracy: %f" % (stats.accuracy(),))
 
