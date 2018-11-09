@@ -88,3 +88,92 @@ if (len(sys.argv) > 1):
     classifier.store(sys.argv[1])
     classifier = lvq.load(sys.argv[1])
     print("Stored and re-loaded to/from " + sys.argv[1])
+
+
+#
+# Clustering
+#
+
+data_set = (
+    (1, 0, 0),
+    (0, 1, 0),
+    (0, 0, 1),
+    (1, 1, 0),
+    (1, 0, 1),
+    (1, 1, 1),
+
+    ( 0.8,  0.1, -0.2),
+    ( 0.2,  1.1, -0.3),
+    (-0.3,  0.1,  0.9),
+    ( 0.9,  1.2,  0.1),
+    ( 0.9,  0.2,  1.1),
+    ( 1.3,  0.8,  1.1),
+
+    ( 1.1, -0.1, -0.1),
+    ( 0.0,  1.1, -0.1),
+    (-0.1,  0.2,  0.8),
+    ( 0.9,  1.1,  0.0),
+    ( 0.8, -0.1,  1.0),
+    ( 1.2,  0.9,  1.0),
+)
+
+print("Data set: " +  str(data_set))
+
+best_ccnt  = 0
+least_avge = 999999999
+for ccnt in range(1, 10):
+    print("Trying with %d clusters..." % (ccnt,))
+
+    clustering = lvq(3, ccnt)
+
+    clustering.set_random()
+    clustering.train_unsupervised(data_set)
+
+    for cluster in range(ccnt):
+        print("Cluster %d representant: %s" % (cluster, clustering.get(cluster)))
+
+    for vec in data_set:
+        cluster = clustering.classify(vec)
+        print(str(vec) + " classifed as cluster " + str(cluster))
+
+    stats = clustering.test_clustering(data_set)
+    avge  = stats.avg_error()
+
+    print("Avg. error: %f" % (avge,))
+
+    for cluster in range(ccnt):
+        print("Cluster %d avg. error: %f" % (cluster, stats.avg_error(cluster)))
+
+    if avge < least_avge:
+        least_avge = avge
+        best_ccnt  = ccnt
+
+print("Best clustred to %d clusters, avg. error: %f" % (best_ccnt, least_avge))
+
+
+print("Trying with 6 manually-initialised clusters...")
+
+clustering = lvq(3, 6)
+
+clustering.set(data_set[0], 0)
+clustering.set(data_set[1], 1)
+clustering.set(data_set[2], 2)
+clustering.set(data_set[3], 3)
+clustering.set(data_set[4], 4)
+clustering.set(data_set[5], 5)
+clustering.train_unsupervised(data_set, 20, 9, 1000)
+
+for cluster in range(6):
+    print("Cluster %d representant: %s" % (cluster, clustering.get(cluster)))
+
+for vec in data_set:
+    cluster = clustering.classify(vec)
+    print(str(vec) + " classifed as cluster " + str(cluster))
+
+stats = clustering.test_clustering(data_set)
+avge  = stats.avg_error()
+
+print("Avg. error: %f" % (avge,))
+
+for cluster in range(6):
+    print("Cluster %d avg. error: %f" % (cluster, stats.avg_error(cluster)))
