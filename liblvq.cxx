@@ -45,6 +45,7 @@
 #include <structmember.h>
 
 #include <cstdint>
+#include <cstdlib>
 
 
 /** Base numeric type */
@@ -542,6 +543,24 @@ static void BINDING_IDENT(liblvq__lvq__clustering_statistics__destroy)(
 //
 // ml::lvq member functions binding
 //
+
+/** RNG seed */
+static PyObject * rng_seed(PyObject * args) {
+    int seed = 0;
+    parse_args(args, "|i", &seed);
+    srand(seed);
+
+    // No return value
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+/** \cond */
+static PyObject * BINDING_IDENT(rng_seed)(PyObject * self, PyObject * args) {
+    return wrap_X(self, rng_seed, args);
+}
+/** \endcond */
+
 
 /**
  *  \brief  Constructor
@@ -1618,6 +1637,12 @@ static PyTypeObject * get_lvqClusteringStatisticsType() {
 
 /** Module member functions */
 static PyMethodDef liblvq_methods[] = {
+    {
+        "rng_seed",
+        BINDING_IDENT(rng_seed),
+        METH_VARARGS,
+        "Seed RNG"
+    },
 
     { NULL, NULL, 0, NULL }  // sentinel
 };  // end of liblvq__methods

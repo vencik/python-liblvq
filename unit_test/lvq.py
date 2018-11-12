@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
-from liblvq import lvq
+from liblvq import lvq, rng_seed
 
 import sys
+from time import time
+
+
+rng_seed(int(time()))
 
 
 classifier = lvq(3, 6)
